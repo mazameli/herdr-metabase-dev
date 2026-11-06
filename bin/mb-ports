@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Prints `export` lines giving the current Metabase checkout its own ports.
+# The main checkout is slot 0 (3000/8080/50605); every other worktree gets the
+# lowest free slot >= 1, remembered in ~/.config/mb-ports so it stays stable.
+# Slots of worktrees that no longer exist are reused.
+set -euo pipefail
+
+MAIN=${MB_MAIN_CHECKOUT:-$HOME/workspace/metabase}
+REG=~/.config/mb-ports
+
+root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "mb-ports: not in a git checkout" >&2; exit 1; }
+mkdir -p "$(dirname "$REG")"
+touch "$REG"
+
+if [ "$root" = "$(cd "$MAIN" && pwd -P)" ]; then
+  slot=0
+else
+  # Serialize allocation so two worktrees starting at once can't grab the same slot.
+  lock="$REG.lock"
+  until mkdir "$lock" 2>/dev/null; do sleep 0.1; done
+  trap 'rmdir "$lock"' EXIT
+
+  slot=$(awk -v p="$root" '$2 == p { print $1 }' "$REG")
+  if [ -z "$slot" ]; then
+    # Drop entries whose worktree is gone, then take the lowest free slot.
+    tmp=$(mktemp)
+    while read -r s p; do [ -d "$p" ] && echo "$s $p"; done < "$REG" > "$tmp"
+    mv "$tmp" "$REG"
+    slot=1
+    while awk -v s="$slot" '$1 == s { found = 1 } END { exit !found }' "$REG"; do slot=$((slot + 1)); done
+    echo "$slot $root" >> "$REG"
+  fi
+fi
+
+echo "export MB_PORT_SLOT=$slot MB_JETTY_PORT=$((3000 + slot)) MB_FRONTEND_DEV_PORT=$((8080 + slot)) NREPL_PORT=$((50605 + slot))"
