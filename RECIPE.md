@@ -19,6 +19,7 @@ left to right:
 
 1. The machine: a monitor icon and "This computer", or a server icon and the machine's name.
 2. The branch: a branch icon and the shown space's git branch (only when there is one).
+   It turns `foreground` on hover.
 3. **Port**: "Port 3007", meaning the `MB_JETTY_PORT` that direnv sets in this
    worktree. It's `muted` like the branch and turns `foreground` on hover.
    It's hidden when the variable isn't set there.
@@ -42,6 +43,8 @@ left to right:
   (falling back to `/opt/homebrew/bin/direnv` when `direnv` isn't on PATH).
   It's cached per folder, read again every 15 s, and read when the folder changes.
   An `.envrc` that hasn't been allowed gives no port, so nothing is shown.
+- **Clicking the branch** copies its name to the clipboard (`cx.write_to_clipboard`)
+  and shows an info toast, "Copied branch name", for 2 s.
 - **Clicking Port** runs `open http://localhost:<port>/`.
 - **Status checks** run every 2 s while starting or stopping, and every 6 s otherwise:
   - the background terminal is found with `hc ls --json --label mbdev=<folder>`
@@ -110,6 +113,7 @@ left to right:
 
 - In a worktree whose `.envrc` is allowed, the bar shows "Port <MB_JETTY_PORT>".
   In `~` it shows no Port and no control.
+- Clicking the branch puts its name on the clipboard (`pbpaste` prints it).
 - Clicking Port opens `http://localhost:<port>/` in the default browser.
 - In a worktree with nothing running, clicking "Not running" creates a live
   terminal `ee-<port>` (`hc ls --label mbdev=<folder>`). The light turns

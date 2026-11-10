@@ -163,7 +163,12 @@ export default class MetabaseStatus extends View {
     const label = (icon, text) => h_flex().gap(6).items_center().child(svg(`mods/workspace-chrome/${icon}.svg`).size(13)).child(text);
     return h_flex().size_full().px(14).gap(16).items_center().bg(t.chrome).border_t(1).border_color(t.border).text_size(11.8).text_color(t.muted)
       .child(label(space?.machine ? "server" : "monitor", space?.machine ?? "This computer"))
-      .when(Boolean(space?.branch), el => el.child(label("branch", space.branch)))
+      .when(Boolean(space?.branch), el => el.child(label("branch", space.branch).id("branch").cursor_pointer()
+        .hover(s => s.text_color(t.foreground))
+        .on_click((_e, cx) => {
+          cx.write_to_clipboard(space.branch);
+          notify({ title: "Copied branch name", body: space.branch, level: "info", timeout: 2000 });
+        })))
       .when(Boolean(port), el => el.child(div().id("jetty-port").cursor_pointer().hover(s => s.text_color(t.foreground))
         .on_click(() => { exec("open", [`http://localhost:${port}/`]).catch(() => {}); })
         .child(`Port ${port}`)))
