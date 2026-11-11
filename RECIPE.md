@@ -3,15 +3,30 @@
 Herdr's default window, with a status bar for Metabase development. When the
 shown space is a Metabase worktree, the bar shows that worktree's backend port
 (click it to open the app in a browser) and a start/stop control for the
-`ee` dev command (`bun dev-ee`), with a red/yellow/green light.
+`ee` dev command (`bun dev-ee`), with a red/yellow/green light. In the
+Spaces list, each space's repo and branch sit on a second line under its name.
 
 ![Metabase Dev](preview.png)
 
 ## What you see
 
-The window is the shipped `main` layout unchanged (spaces and agents sidebar
-on the left, tab pills on top, panes as cards, Files/Changes panel on the
-right), except for the 28px status bar along the bottom of the work column.
+The window is the shipped `main` layout (spaces and agents sidebar on the
+left, tab pills on top, panes as cards, Files/Changes panel on the right),
+with two changes: the Spaces list and the 28px status bar along the bottom
+of the work column.
+
+**The Spaces list** is the shipped one, except for each space's row:
+
+- Line one has the 18px colored letter mark (or the branch icon for a
+  worktree nested under its repo), then the name. The name is 13px
+  `foreground` and fills the rest of the row, truncated only at the edge.
+- Line two has the repo and branch ("metabase · prototype/text-chart-type")
+  at 11.5px in `dim`, then ahead/behind counts (↑2 in `ansi2`, ↓1 in `ansi1`).
+  It starts under the name: 27px in, or 44px for a nested worktree.
+- The shipped rules still decide what's on line two. `main` and `master` are
+  left out, and so is a repo or branch that matches the space's name. When
+  nothing is left, there's no second line.
+- A row is 44px with two lines, and as shipped (30px, or 28px nested) with one.
 
 The status bar is `chrome` colored with a 1px `border` top line. Its text is
 11.8px in `muted`, with 16px gaps between items and 14px side padding. From
@@ -74,7 +89,12 @@ left to right:
 ## Built from
 
 - `layouts/metabase-dev.json` is a clone of the shipped `main` (0.1.13). Its
-  `status` block's `content.mod` is `metabase-status`; everything else is as shipped.
+  `status` block's `content.mod` is `metabase-status`, and its `spaces` block's
+  is `metabase-spaces`; everything else is as shipped.
+- `mods/metabase-spaces` is a clone of the shipped `spaces` (0.1.15). Its
+  `row()` is a `v_flex` of the first line plus `gitTail(...)` as a second
+  line. `gitTail` returns null when there's nothing to show, and
+  `rowHeight` takes `two` for the 44px rows.
 - `mods/metabase-status` (`place: none`) is a clone of the shipped
   `workspace-status`, with the Port and dev control added after the branch.
   It reuses `mods/workspace-chrome/{monitor,server,branch}.svg`.
@@ -107,7 +127,8 @@ left to right:
 - Don't start `cx.spawn` work from `render` for folders that are already cached.
   Only a folder with no cached port starts a lookup.
 - Spaces on other machines show neither the Port nor the control; the dev control only works locally.
-- Because the layout is a clone, it doesn't pick up Herdr's later changes to `main`.
+- Because the layout and both mods are clones, they don't pick up Herdr's
+  later changes to `main`, `spaces` or `workspace-status`.
 
 ## Done when
 
@@ -122,4 +143,6 @@ left to right:
 - Clicking "Running" shows "Stopping…", the terminal disappears, nothing
   listens on the port any more (`lsof -ti tcp:<port>` is empty), and the control
   reads "Not running".
-- `herdr-app check mods/metabase-status` passes.
+- In the Spaces list, a worktree space shows its name on one line and
+  "metabase · <branch>" under it; a space in `~` stays one line.
+- `herdr-app check mods/metabase-status` and `herdr-app check mods/metabase-spaces` pass.

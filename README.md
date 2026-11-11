@@ -2,7 +2,8 @@
 
 A [Herdr](https://herdr.dev) layout for Metabase development. The status bar
 shows the current worktree's backend port (click it to open the app) and a
-start/stop control for `ee` (`bun dev-ee`).
+start/stop control for `ee` (`bun dev-ee`). The Spaces list shows each
+space's repo and branch on a second line under its name.
 
 ![preview](preview.png)
 
@@ -18,8 +19,9 @@ github.com/mazameli/herdr-metabase-dev".
 ```sh
 git clone https://github.com/mazameli/herdr-metabase-dev
 cp herdr-metabase-dev/layouts/metabase-dev.json ~/.config/herdr-app/layouts/
-cp -R herdr-metabase-dev/mods/metabase-status ~/.config/herdr-app/mods/
+cp -R herdr-metabase-dev/mods/metabase-status herdr-metabase-dev/mods/metabase-spaces ~/.config/herdr-app/mods/
 herdr-app check ~/.config/herdr-app/mods/metabase-status
+herdr-app check ~/.config/herdr-app/mods/metabase-spaces
 herdr-app do layout.switch '{"name":"metabase-dev"}'
 ```
 
