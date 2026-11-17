@@ -176,6 +176,8 @@ export default class MetabaseStatus extends View {
       .child(h_flex().gap(6).items_center().child(div().size(6).rounded(3).bg(t.dim)).child(`${list.length} agents`)
         .when(needs > 0, el => el.child(div().text_color(t.blocked).child(`· ${needs} needs you`))))
       .child(div().flex_1())
+      .child(div().id("prompts-toggle").cursor_pointer().hover(s => s.text_color(t.foreground))
+        .on_click(() => run("layout.toggle", { id: "prompts" })).child("Prompts"))
       .child(div().id("palette").text_color(t.dim).on_click(() => run("app.palette")).child(this.hint(t)));
   }
 }

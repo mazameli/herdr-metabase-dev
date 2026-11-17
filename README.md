@@ -3,7 +3,10 @@
 A [Herdr](https://herdr.dev) layout for Metabase development. The status bar
 shows the current worktree's backend port (click it to open the app) and a
 start/stop control for `ee` (`bun dev-ee`). The Spaces list shows each
-space's repo and branch on a second line under its name.
+space's repo and branch on a second line under its name. A Prompts panel on
+the right lists your prompts to the current agent (Claude Code or omp); click
+one to scroll the agent's terminal back to it. Toggle it with `⌘⇧H` or the
+status bar's "Prompts".
 
 ![preview](preview.png)
 
@@ -19,15 +22,22 @@ github.com/mazameli/herdr-metabase-dev".
 ```sh
 git clone https://github.com/mazameli/herdr-metabase-dev
 cp herdr-metabase-dev/layouts/metabase-dev.json ~/.config/herdr-app/layouts/
-cp -R herdr-metabase-dev/mods/metabase-status herdr-metabase-dev/mods/metabase-spaces ~/.config/herdr-app/mods/
-herdr-app check ~/.config/herdr-app/mods/metabase-status
-herdr-app check ~/.config/herdr-app/mods/metabase-spaces
+cp -R herdr-metabase-dev/mods/metabase-{status,spaces,prompts} ~/.config/herdr-app/mods/
+for m in status spaces prompts; do herdr-app check ~/.config/herdr-app/mods/metabase-$m; done
 herdr-app do layout.switch '{"name":"metabase-dev"}'
 ```
 
 `ctrl-shift-l` switches back to your previous layout.
 
+For the `⌘⇧H` toggle, add `"cmd-shift-h": "layout.toggle:prompts"` to the
+`global` section of `~/.config/herdr-app/keys.json` (see this repo's
+`keys.json`). The agent install merges it for you.
+
 ## Prerequisites
+
+- `python3`, for the Prompts panel. Jumping to a prompt needs terminal
+  scrollback, which Claude Code's fullscreen mode (`"tui": "fullscreen"`)
+  doesn't keep.
 
 - [direnv](https://direnv.net), hooked into your shell.
 - zsh, with the `ee` alias in `~/.zshrc`:

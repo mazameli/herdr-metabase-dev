@@ -5,6 +5,8 @@ shown space is a Metabase worktree, the bar shows that worktree's backend port
 (click it to open the app in a browser) and a start/stop control for the
 `ee` dev command (`bun dev-ee`), with a red/yellow/green light. In the
 Spaces list, each space's repo and branch sit on a second line under its name.
+A Prompts panel on the right lists every prompt you sent the current agent;
+click one to scroll that agent's terminal back to it.
 
 ![Metabase Dev](preview.png)
 
@@ -12,8 +14,24 @@ Spaces list, each space's repo and branch sit on a second line under its name.
 
 The window is the shipped `main` layout (spaces and agents sidebar on the
 left, tab pills on top, panes as cards, Files/Changes panel on the right),
-with two changes: the Spaces list and the 28px status bar along the bottom
-of the work column.
+with three changes: the Spaces list, a Prompts panel on the right, and the
+28px status bar along the bottom of the work column.
+
+**The Prompts panel** is a 340px block (drag 240–700) at the right end of the
+`work-body` row, after the Files/Changes panel. It's a card like Files: 10px
+corners, `background` fill, 1px `border`.
+
+- Its 42px header has "Prompts" (semibold), the count in `dim`, the agent's
+  "space / tab" right-aligned in `dim`, and a 24px ✕ button that hides the panel.
+- Below the header, the prompts run oldest to newest, each a card with 8px
+  corners, `surface` fill and a 1px `border`, with 8px between cards:
+  - "#N" on the left and the time on the right (10.5px, `dim`)
+  - the prompt's text below (12.5px, `foreground`), cut off past 96px
+- The list starts scrolled to the newest prompt at the bottom.
+- A card turns `hover` under the pointer. The last one clicked stays
+  `selected`, with an `accent` border.
+- When there's nothing to list, a note says why: no agent focused, an agent
+  on another machine, still reading, no prompts yet, or no transcript found.
 
 **The Spaces list** is the shipped one, except for each space's row:
 
@@ -48,7 +66,9 @@ left to right:
    It has 6px horizontal padding and 4px corners. On hover it gets a `hover`
    background and `foreground` text, except while stopping.
 5. The agents: a 6px `dim` dot and "N agents", plus "· N needs you" in `blocked` when agents are blocked.
-6. Then a spacer, and the palette hint on the right ("⌘⇧P  commands" from the real binding) in `dim`.
+6. Then a spacer, "Prompts" (turns `foreground` on hover; toggles the
+   Prompts panel), and the palette hint on the right ("⌘⇧P  commands" from
+   the real binding) in `dim`.
 
 ## How it behaves
 
@@ -83,6 +103,17 @@ left to right:
   - Started elsewhere: `kill` on the pids from `lsof -ti tcp:<port> -sTCP:LISTEN`,
     which stops only the backend.
 - **Clicking while Stopping** does nothing.
+- **Which agent the Prompts panel shows:** the agent in the focused pane;
+  else an agent in the focused tab; else the last one it showed. It reads
+  the transcript again every 3 s (and does nothing when its size hasn't changed).
+  When the count grows, it scrolls to the newest.
+- **Clicking a prompt** asks `prompts.py locate` how many lines up it is.
+  Then it runs `terminal.scroll {terminal, to: "bottom"}` and
+  `terminal.scroll {terminal, lines: -n}`, which puts the prompt's first line
+  one row below the top of the view. If the prompt can't be found, a warning
+  toast says why.
+- **Toggling the Prompts panel:** `⌘⇧H` (`layout.toggle:prompts`, in
+  `keys.json`) or the status bar's "Prompts". The ✕ runs `layout.hide {id: "prompts"}`.
 - **Logs:** the background terminal isn't shown in any pane. Read it with
   `hc read ee-<port>`, or attach to it with `hc attach ee-<port>`.
 
@@ -95,8 +126,33 @@ left to right:
   `row()` is a `v_flex` of the first line plus `gitTail(...)` as a second
   line. `gitTail` returns null when there's nothing to show, and
   `rowHeight` takes `two` for the 44px rows.
+- `mods/metabase-prompts` (`place: none`) is the Prompts panel. Its list
+  scrolls with a `ScrollHandle` (`scroll_to_item(last)`). It calls
+  `python3 mods/metabase-prompts/prompts.py` through `exec`:
+  - `list <terminal> [<file>:<size>]` returns
+    `{agent, size, prompts: [{text, ts}]}`, or `{unchanged: true}`.
+  - `locate <terminal> <index>` returns `{lines_up}` or `{error}`.
+
+  The script finds the transcript from `hc get <terminal> --json`'s
+  `foreground.pid`:
+  - Claude Code: `~/.claude/sessions/<pid>.json` gives `sessionId`, which
+    gives `~/.claude/projects/*/<sessionId>.jsonl`. It keeps `type: "user"`
+    lines whose `origin.kind` is `"human"` and that aren't `isMeta`, and
+    strips `<command-*>`, `<local-command-*>` and `<system-reminder>` tags.
+  - omp: `ps -o tty= -p <pid>` gives the tty, and the second line of
+    `~/.omp/agent/terminal-sessions/<tty>` is the session's `.jsonl`. It keeps
+    `type: "message"` lines whose `message.role` is `"user"` and whose
+    `attribution` is `"user"`.
+
+  To locate a prompt, it reads `hc read <terminal> --json --lines 1000000`.
+  It matches the first 40 characters of each prompt's first line (whitespace
+  collapsed) against the scrollback rows, from the newest prompt back, each
+  match above the last. Claude Code rows must start with `❯ `. omp draws a
+  pasted `[Image #1, WxH]` as `📷 #1`, so both are stripped before comparing.
+  Then `lines_up = rows_total - terminal_rows - row + 1`.
 - `mods/metabase-status` (`place: none`) is a clone of the shipped
-  `workspace-status`, with the Port and dev control added after the branch.
+  `workspace-status`, with the Port and dev control added after the branch,
+  and the Prompts toggle before the palette hint.
   It reuses `mods/workspace-chrome/{monitor,server,branch}.svg`.
 - `herdr` functions it uses:
   - `spaces`, `agents`, `focused`, `theme`, `keys`, `window`
@@ -127,7 +183,16 @@ left to right:
 - Don't start `cx.spawn` work from `render` for folders that are already cached.
   Only a folder with no cached port starts a lookup.
 - Spaces on other machines show neither the Port nor the control; the dev control only works locally.
-- Because the layout and both mods are clones, they don't pick up Herdr's
+- Claude Code in fullscreen mode (`"tui": "fullscreen"` in
+  `~/.claude/settings.json`) keeps no terminal scrollback, so its prompts list
+  but can't be jumped to; the toast says so. omp and Claude Code's default
+  mode keep scrollback.
+- Matching is by text, so a reply that quotes the start of a prompt word for
+  word can catch the jump instead. Prompts that have left the scrollback
+  can't be jumped to.
+- `terminal.scroll` scrolls Herdr's view, not the program; it needs the core's
+  history, which `hc read --lines` returns as rows exactly as drawn (wrapped).
+- Because the layout and the mods are clones, they don't pick up Herdr's
   later changes to `main`, `spaces` or `workspace-status`.
 
 ## Done when
@@ -145,4 +210,9 @@ left to right:
   reads "Not running".
 - In the Spaces list, a worktree space shows its name on one line and
   "metabase · <branch>" under it; a space in `~` stays one line.
-- `herdr-app check mods/metabase-status` and `herdr-app check mods/metabase-spaces` pass.
+- With an omp agent focused, the Prompts panel lists the same prompts as its
+  session file, newest at the bottom. Clicking one scrolls the terminal so
+  that prompt's first line is one row below the top of the view.
+- `⌘⇧H` and the status bar's "Prompts" toggle the panel; ✕ hides it.
+- `herdr-app check` passes for `mods/metabase-status`, `mods/metabase-spaces`
+  and `mods/metabase-prompts`.
